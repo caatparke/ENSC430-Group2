@@ -327,3 +327,9 @@ rm(data)
 
 # Soil moisture
 ```
+
+New code chunk
+
+```{r}
+a <- 1
+```

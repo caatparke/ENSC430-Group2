@@ -334,9 +334,3 @@ New code chunk
 a <- 1
 ```
 
-naomi edit test
-```{r}
-a <- 2
-
-print(a)
-```

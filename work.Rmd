@@ -333,3 +333,10 @@ New code chunk
 ```{r}
 a <- 1
 ```
+
+naomi edit test
+```{r}
+a <- 2
+
+print(a)
+```

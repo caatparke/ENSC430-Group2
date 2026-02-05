@@ -1,0 +1,31 @@
+---
+title: "RH work"
+output: pdf_document
+date: "2026-01-26"
+---
+
+```{r}
+Td <- terra::rast("data/dew_point_2001-2025.nc")
+T <-terra::rast("data/ERA5_tas_2001-2023.nc")
+
+e(T) <- 6.112 * exp ((17.67 * T)/( T + 243.5))
+e(Td) <- 6.112 * exp ((17.67 * Td)/( Te + 243.5))
+
+RH <- (e(Td) / e(T)) * 100
+
+```
+
+```{r}
+library(humidity)
+
+t <- terra::rast("data/ERA5_tas_2001-2023.nc")
+Td <- terra::rast("data/dew_point_2001-2025.nc")
+Td <- as.numeric(as.character(Td))
+t <- as.numeric(as.character(t))
+class(Td)
+class(t)
+RH <- RH(t,Td, isK = TRUE)
+print(RH)
+
+
+```

@@ -16,50 +16,99 @@ library(vars)
 ```
 
 ```{r}
-# Let's focus on Eastern Canada
-# Focusing on a region will reduce the time required for running the code
-# domain <- c(0, 80, 43, 55) # Eastern Canada
-domain <- c(0, 360, -90, 90) # undefined domain
+data <- terra::rast("data/fractionBurnt_ESACCI-L4_FIRE-BA-MODIS-fv5.1.nc")
 
-# Fractional area burn
-data <- terra::rast("data/burntFractionAll_GFED4S_128x64.nc")
+# Let's subset Jan 2001 to Dec 2015
+data <- terra::subset(data, 12:180)
+# Let's focus on the Canada
+data <- crop(x=data, y = c(219.0, 307.4, 41.7, 83.1))
+
+evi.mean <- mean(data, na.rm = TRUE)
+
+plot(evi.mean, main = "Fractional Area Burned (-)")
+map("world2", add = TRUE)
+```
+
+
+## Correcting Spatial Resolution 
+```{r}
+# Let's focus on Canada
+# Focusing on a region will reduce the time required for running the code
+domain <- c(219.0, 307.4, 41.7, 83.1) # Canada
+
+# Fractional Area Burned
+data <- terra::rast("data/fractionBurnt_ESACCI-L4_FIRE-BA-MODIS-fv5.1.nc")
 data <- crop(x = data, y = domain)
-# data <- subset(data, 12:287) # Subset Jan 2001 to Dec 2023
-# data <- aggregate(x = data, fact=2, fun="mean") # More coarse spatial resolution
+data <- subset(data, 1:180) # Subset Jan 2001 to Dec 2015
+data <- aggregate(x = data, fact=2, fun="mean") # More coarse spatial resolution
 crs(data) <- "EPSG:4326" # assign a map projection (WGS84)
-# evi <- data
+fab <- data
 mask <- mean(data) # create mask
 mask <- mask - mask + 1 # make boolean mask
-# rm(data)
+rm(data)
 
 # Precipitation (m)
-data1 <- terra::rast("data/ERA5_pr_2001-2023.nc")
-data1 <- crop(x = data1, y = domain)
-data1 <- terra::resample(x = data1, y = mask) # resample to fire grid
-crs(data1) <- "EPSG:4326" # assign a map projection (WGS84)
-data <- data1 * mask # exclude gridcells that both data sets do not have in common
-pr <- data1 * 1000 # convert unit from m to mm
-rm(data1)
+data_pr <- terra::rast("data/ERA5_pr_2001-2023.nc")
+data_pr <- crop(x = data_pr, y = domain)
+data_pr <- data_pr[[1:180]] # Subset Jan 2001 to Dec 2015
+data_pr <- aggregate(x = data_pr, fact=2, fun="mean")
+data_pr <- resample(data_pr, mask, method="bilinear") # Project/Resample 'pr' to match the exact grid of 'fab'
+crs(data_pr) <- "EPSG:4326"
+data_pr <- data_pr * mask # exclude gridcells that both data sets do not have in common
+pr <- data_pr * 1000 # convert unit from m to mm
+rm(data_pr)
 
+# Near-surface temperature (K)
+data_tas <- terra::rast("data/ERA5_tas_2001-2023.nc")
+data_tas <- crop(x = data_tas, y = domain)
+data_tas <- data_tas[[1:180]] # Subset Jan 2001 to Dec 2015
+data_tas <- aggregate(x = data_tas, fact=2, fun="mean")
+data_tas <- resample(data_tas, mask, method="bilinear") # Project/Resample 'tas' to match the exact grid of 'fab'
+crs(data_tas) <- "EPSG:4326"
+data_tas <- data_tas * mask # exclude gridcells that both data sets do not have in common
+tas <- data_tas 
+rm(data_tas)
+
+# Soil Moisture ()
+data_sm <- terra::rast("data/data_soil_moisture.nc")
+data_sm <- crop(x = data_sm, y = domain)
+data_sm <- data_sm[[1:180]] # Subset Jan 2001 to Dec 2015
+data_sm <- aggregate(x = data_sm, fact=2, fun="mean")
+data_sm <- resample(data_sm, mask, method="bilinear") # Project/Resample 'sm' to match the exact grid of 'fab'
+crs(data_sm) <- "EPSG:4326"
+data_sm <- data_sm * mask # exclude gridcells that both data sets do not have in common
+sm <- data_sm 
+rm(data_sm)
+
+# Surface Wind ()
+data_ws <- terra::rast("data/data_wind.nc")
+data_ws <- crop(x = data_ws, y = domain)
+data_ws <- data_ws[[1:180]] # Subset Jan 2001 to Dec 2015
+data_ws <- aggregate(x = data_ws, fact=2, fun="mean")
+data_ws <- resample(data_ws, mask, method="bilinear") # Project/Resample 'ws' to match the exact grid of 'fab'
+crs(data_ws) <- "EPSG:4326"
+data_ws <- data_ws * mask # exclude gridcells that both data sets do not have in common
+ws <- data_ws 
+rm(data_ws)
+
+# Relative Humidity
+data_rh <- terra::rast("data/relativeHumidity.nc")
+data_rh <- aggregate(x = data_rh, fact=2, fun="mean")
+data_rh <- resample(data_rh, mask, method="bilinear") # Project/Resample 'rh' to match the exact grid of 'fab'
+crs(data_rh) <- "EPSG:4326"
+data_rh <- data_rh * mask # exclude gridcells that both data sets do not have in common
+rh <- data_rh 
+rm(data_rh)
 ```
 
-## Fractional area burned
-
+## Precipitation (m) 
 ```{r}
-
-
-
-```
-
-## Precipitation
-
-```{r}
-
+# 12-month climatological means
 data <- pr
 
 # Create a sequence of dates
 start_date <- as.Date("2001-01-15")
-end_date <- as.Date("2023-12-15")
+end_date <- as.Date("2015-12-15")
 dates <- seq(from = start_date, to = end_date, by = "month")
 
 # Create raster time series
@@ -72,10 +121,7 @@ data.12 <- apply.months(data.ts,'mean')
 my.col <- rev(map.pal("magma", n = 100))
 plot(data.12, col = my.col)
 
-```
-
-```{r}
-
+# Calculate anomalies
 # Get the number of years
 n <- length(dates)/12
 
@@ -90,10 +136,7 @@ my.col <- rev(map.pal("magma", n = 100))
 plot(subset(data.anom, 1:1), col = my.col)
 map("world2", add = TRUE)
 
-```
-
-```{r}
-
+# Detrend precipitation anomalies
 # Define a function that removes a linear trend
 detrend.fun <- function(x) {
   time <- 1:length(x)
@@ -115,68 +158,16 @@ pr.anom.detrend <- data.anom.detrend
 my.col <- rev(map.pal("magma", n = 100))
 plot(subset(data.anom.detrend, 1:1), col = my.col)
 map("world2", add = TRUE)
-
 ```
 
+## Near-surface air temperature
 ```{r}
-
-granger.fun <- function(x) {
-  
-    # If a grid cell contains NA, then set the result to NA
-  if (is.na(mean(x))) {
-    return(NA)
-  } else {
-    
-  n <- length(x)
-  # Get first (a) and second (b) variable
-  a <- x[1:(n/2)]
-  b <- x[(n/2+1):n]
-  # Convert to time series
-  a <- ts(a)
-  b <- ts(b)
-  tsDat <- ts.union(a, b)
-  tsVAR <- vars::VAR(tsDat, p = 2)
-  # Apply Granger causality test 
-  p.value <- c(vars::causality(tsVAR, cause = "a")$Granger[3]$p.value)
-  return(p.value)
-  }
-}
-
-```
-
-```{r}
-
-granger.fun <- function(x) {
-  
-    # If a grid cell contains NA, then set the result to NA
-  if (is.na(mean(x))) {
-    return(NA)
-  } else {
-    
-  n <- length(x)
-  # Get first (a) and second (b) variable
-  a <- x[1:(n/2)]
-  b <- x[(n/2+1):n]
-  # Convert to time series
-  a <- ts(a)
-  b <- ts(b)
-  tsDat <- ts.union(a, b)
-  tsVAR <- vars::VAR(tsDat, p = 2)
-  # Apply Granger causality test 
-  p.value <- c(vars::causality(tsVAR, cause = "a")$Granger[3]$p.value)
-  return(p.value)
-  }
-}
-
-```
-
-```{r}
-
-data <- pr
+# 12-month climatological means
+data <- tas
 
 # Create a sequence of dates
 start_date <- as.Date("2001-01-15")
-end_date <- as.Date("2023-12-15")
+end_date <- as.Date("2015-12-15")
 dates <- seq(from = start_date, to = end_date, by = "month")
 
 # Create raster time series
@@ -189,10 +180,7 @@ data.12 <- apply.months(data.ts,'mean')
 my.col <- rev(map.pal("magma", n = 100))
 plot(data.12, col = my.col)
 
-```
-
-```{r}
-
+# Calculate anomalies
 # Get the number of years
 n <- length(dates)/12
 
@@ -207,10 +195,7 @@ my.col <- rev(map.pal("magma", n = 100))
 plot(subset(data.anom, 1:1), col = my.col)
 map("world2", add = TRUE)
 
-```
-
-```{r}
-
+# Detrend Temperature anomalies
 # Define a function that removes a linear trend
 detrend.fun <- function(x) {
   time <- 1:length(x)
@@ -226,21 +211,258 @@ detrend.fun <- function(x) {
 }
 
 data.anom.detrend <- app(x = data.anom, fun = detrend.fun)
-pr.anom.detrend <- data.anom.detrend
+tas.anom.detrend <- data.anom.detrend
 
 # Have a look at the data
 my.col <- rev(map.pal("magma", n = 100))
 plot(subset(data.anom.detrend, 1:1), col = my.col)
 map("world2", add = TRUE)
-
 ```
 
-```{r}
 
+## Soil Moisture
+```{r}
+# 12-month climatological means
+data <- sm
+
+# Create a sequence of dates
+start_date <- as.Date("2001-01-15")
+end_date <- as.Date("2015-12-15")
+dates <- seq(from = start_date, to = end_date, by = "month")
+
+# Create raster time series
+data.ts <- rts(data, dates)
+
+# Calculate 12-month climatological means
+data.12 <- apply.months(data.ts,'mean')
+
+# Plot 12 months of data
+my.col <- rev(map.pal("magma", n = 100))
+plot(data.12, col = my.col)
+
+# Calculate anomalies
+# Get the number of years
+n <- length(dates)/12
+
+# Create a time series where the 12-month climatological mean repeats for all years 
+data.clim <- rep(data.12, n)
+
+# Calculate anomalies
+data.anom <- data - data.clim
+
+# Have a look at the data
+my.col <- rev(map.pal("magma", n = 100))
+plot(subset(data.anom, 1:1), col = my.col)
+map("world2", add = TRUE)
+
+# Detrend precipitation anomalies
+# Define a function that removes a linear trend
+detrend.fun <- function(x) {
+  time <- 1:length(x)
+  # If a grid cell contains NA, then set the result to NA
+  if (is.na(mean(x))) {
+    return(rep(NA, length(time)))
+  } else {
+    time <- 1:length(x)
+    linear.model <- lm(x ~ time)
+    detrended.series <- stats::residuals(linear.model)
+    return(detrended.series)
+  }
+}
+
+data.anom.detrend <- app(x = data.anom, fun = detrend.fun)
+sm.anom.detrend <- data.anom.detrend
+
+# Have a look at the data
+my.col <- rev(map.pal("magma", n = 100))
+plot(subset(data.anom.detrend, 1:1), col = my.col)
+map("world2", add = TRUE)
+```
+
+## Surface Wind
+```{r}
+# 12-month climatological means
+data <- ws
+
+# Create a sequence of dates
+start_date <- as.Date("2001-01-15")
+end_date <- as.Date("2015-12-15")
+dates <- seq(from = start_date, to = end_date, by = "month")
+
+# Create raster time series
+data.ts <- rts(data, dates)
+
+# Calculate 12-month climatological means
+data.12 <- apply.months(data.ts,'mean')
+
+# Plot 12 months of data
+my.col <- rev(map.pal("magma", n = 100))
+plot(data.12, col = my.col)
+
+# Calculate anomalies
+# Get the number of years
+n <- length(dates)/12
+
+# Create a time series where the 12-month climatological mean repeats for all years 
+data.clim <- rep(data.12, n)
+
+# Calculate anomalies
+data.anom <- data - data.clim
+
+# Have a look at the data
+my.col <- rev(map.pal("magma", n = 100))
+plot(subset(data.anom, 1:1), col = my.col)
+map("world2", add = TRUE)
+
+# Detrend precipitation anomalies
+# Define a function that removes a linear trend
+detrend.fun <- function(x) {
+  time <- 1:length(x)
+  # If a grid cell contains NA, then set the result to NA
+  if (is.na(mean(x))) {
+    return(rep(NA, length(time)))
+  } else {
+    time <- 1:length(x)
+    linear.model <- lm(x ~ time)
+    detrended.series <- stats::residuals(linear.model)
+    return(detrended.series)
+  }
+}
+
+data.anom.detrend <- app(x = data.anom, fun = detrend.fun)
+ws.anom.detrend <- data.anom.detrend
+
+# Have a look at the data
+my.col <- rev(map.pal("magma", n = 100))
+plot(subset(data.anom.detrend, 1:1), col = my.col)
+map("world2", add = TRUE)
+```
+## Relative Humidity
+```{r}
+# 12-month climatological means
+data <- rh
+
+# Create a sequence of dates
+start_date <- as.Date("2001-01-15")
+end_date <- as.Date("2015-12-15")
+dates <- seq(from = start_date, to = end_date, by = "month")
+
+# Create raster time series
+data.ts <- rts(data, dates)
+
+# Calculate 12-month climatological means
+data.12 <- apply.months(data.ts,'mean')
+
+# Plot 12 months of data
+my.col <- rev(map.pal("magma", n = 100))
+plot(data.12, col = my.col)
+
+# Calculate anomalies
+# Get the number of years
+n <- length(dates)/12
+
+# Create a time series where the 12-month climatological mean repeats for all years 
+data.clim <- rep(data.12, n)
+
+# Calculate anomalies
+data.anom <- data - data.clim
+
+# Have a look at the data
+my.col <- rev(map.pal("magma", n = 100))
+plot(subset(data.anom, 1:1), col = my.col)
+map("world2", add = TRUE)
+
+# Detrend precipitation anomalies
+# Define a function that removes a linear trend
+detrend.fun <- function(x) {
+  time <- 1:length(x)
+  # If a grid cell contains NA, then set the result to NA
+  if (is.na(mean(x))) {
+    return(rep(NA, length(time)))
+  } else {
+    time <- 1:length(x)
+    linear.model <- lm(x ~ time)
+    detrended.series <- stats::residuals(linear.model)
+    return(detrended.series)
+  }
+}
+
+data.anom.detrend <- app(x = data.anom, fun = detrend.fun)
+rh.anom.detrend <- data.anom.detrend
+
+# Have a look at the data
+my.col <- rev(map.pal("magma", n = 100))
+plot(subset(data.anom.detrend, 1:1), col = my.col)
+map("world2", add = TRUE)
+```
+
+## FAB
+```{r}
+# 12-month climatological means
+data <- fab
+
+# Create a sequence of dates
+start_date <- as.Date("2001-01-15")
+end_date <- as.Date("2015-12-15")
+dates <- seq(from = start_date, to = end_date, by = "month")
+
+# Create raster time series
+data.ts <- rts(data, dates)
+
+# Calculate 12-month climatological means
+data.12 <- apply.months(data.ts,'mean')
+
+# Plot 12 months of data
+my.col <- rev(map.pal("magma", n = 100))
+plot(data.12, col = my.col)
+
+# Calculate anomalies
+# Get the number of years
+n <- length(dates)/12
+
+# Create a time series where the 12-month climatological mean repeats for all years 
+data.clim <- rep(data.12, n)
+
+# Calculate anomalies
+data.anom <- data - data.clim
+
+# Have a look at the data
+my.col <- rev(map.pal("magma", n = 100))
+plot(subset(data.anom, 1:1), col = my.col)
+map("world2", add = TRUE)
+
+# Detrend precipitation anomalies
+# Define a function that removes a linear trend
+detrend.fun <- function(x) {
+  time <- 1:length(x)
+  # If a grid cell contains NA, then set the result to NA
+  if (is.na(mean(x))) {
+    return(rep(NA, length(time)))
+  } else {
+    time <- 1:length(x)
+    linear.model <- lm(x ~ time)
+    detrended.series <- stats::residuals(linear.model)
+    return(detrended.series)
+  }
+}
+
+data.anom.detrend <- app(x = data.anom, fun = detrend.fun)
+fab.anom.detrend <- data.anom.detrend
+
+# Have a look at the data
+my.col <- rev(map.pal("magma", n = 100))
+plot(subset(data.anom.detrend, 1:1), col = my.col)
+map("world2", add = TRUE)
+```
+
+# Causal Inference
+
+### Defining a Granger causality function that can be applied to each grid cell
+```{r} 
 granger.fun <- function(x) {
   
     # If a grid cell contains NA, then set the result to NA
-  if (is.na(mean(x))) {
+   if (is.na(mean(x))) {
     return(NA)
   } else {
     
@@ -258,40 +480,13 @@ granger.fun <- function(x) {
   return(p.value)
   }
 }
-
-```
-
-```{r}
-
-granger.fun <- function(x) {
-  
-    # If a grid cell contains NA, then set the result to NA
-  if (is.na(mean(x))) {
-    return(NA)
-  } else {
-    
-  n <- length(x)
-  # Get first (a) and second (b) variable
-  a <- x[1:(n/2)]
-  b <- x[(n/2+1):n]
-  # Convert to time series
-  a <- ts(a)
-  b <- ts(b)
-  tsDat <- ts.union(a, b)
-  tsVAR <- vars::VAR(tsDat, p = 2)
-  # Apply Granger causality test 
-  p.value <- c(vars::causality(tsVAR, cause = "a")$Granger[3]$p.value)
-  return(p.value)
-  }
-}
-
 ```
 
 
+## Check whether precipitation Granger-causes FAB anomalies
 ```{r}
-
 # Stack your raster objects, where the first part is the cause and the second the response
-data <- c(pr.anom.detrend, evi.anom.detrend)
+data <- c(pr.anom.detrend, fab.anom.detrend)
 
 # Assess Granger causality
 p.value <- app(x = data, fun = granger.fun)
@@ -302,35 +497,83 @@ p.value[p.value > 0] <- 1
 
 p.value.pr <- p.value
 
-plot(p.value, col = c("white", "orange"), main = "Precipitation Granger-causes area burned Anomalies")
+plot(p.value, col = c("white", "orange"), main = "Precipitation Granger-causes FAB Anomalies")
 map("world2", add = TRUE, interior = FALSE)
-
 ```
-
+## Check whether Temperature Granger-causes FAB anomalies
 ```{r}
-# Near-surface temperature (K)
-data <- terra::rast("data/ERA5_tas_2001-2023.nc")
-data <- crop(x = data, y = domain)
-data <- aggregate(x = data, fact=2, fun="mean") # More coarse spatial resolution
-crs(data) <- "EPSG:4326" # assign a map projection (WGS84)
-data <- data * mask # exclude gridcells that both data sets do not have in common
-tas <- data
-rm(data)
+# Stack your raster objects, where the first part is the cause and the second the response
+data <- c(tas.anom.detrend, fab.anom.detrend)
 
-# Fractional Area Burnt
-#data <- terra::rast("data/burn/burntFractionAll_GFED4S_128x64.nc + burntFractionAll_GFED4S_360x180.nc")
-#data <- crop(x = data, y = domain)
+# Assess Granger causality
+p.value <- app(x = data, fun = granger.fun)
 
-# Wind Speed
+# Create a boolean map where all locations with p-values < 0.01 equal 1 and all remaining gridcells equal zero
+p.value[p.value >= 0.05] <- 0
+p.value[p.value > 0] <- 1
 
-# Relative Humidity
+p.value.tas <- p.value
 
-# Soil moisture
+plot(p.value, col = c("white", "orange"), main = "Temperature Granger-causes FAB Anomalies")
+map("world2", add = TRUE, interior = FALSE)
 ```
-
-New code chunk
-
+## Check whether Soil moisture Granger-causes FAB anomalies
 ```{r}
-a <- 1
+# Stack your raster objects, where the first part is the cause and the second the response
+data <- c(sm.anom.detrend, fab.anom.detrend)
+
+# Assess Granger causality
+p.value <- app(x = data, fun = granger.fun)
+
+# Create a boolean map where all locations with p-values < 0.01 equal 1 and all remaining gridcells equal zero
+p.value[p.value >= 0.05] <- 0
+p.value[p.value > 0] <- 1
+
+p.value.sm <- p.value
+
+plot(p.value, col = c("white", "orange"), main = "Soil Moisture Granger-causes FAB Anomalies")
+map("world2", add = TRUE, interior = FALSE)
 ```
 
+## Check whether Wind Speed Granger-causes FAB anomalies
+```{r}
+# Stack your raster objects, where the first part is the cause and the second the response
+data <- c(ws.anom.detrend, fab.anom.detrend)
+
+# Assess Granger causality
+p.value <- app(x = data, fun = granger.fun)
+
+# Create a boolean map where all locations with p-values < 0.01 equal 1 and all remaining gridcells equal zero
+p.value[p.value >= 0.05] <- 0
+p.value[p.value > 0] <- 1
+
+p.value.ws <- p.value
+
+plot(p.value, col = c("white", "orange"), main = "Wind Speed Granger-causes FAB Anomalies")
+map("world2", add = TRUE, interior = FALSE)
+```
+
+## Check whether Relative Humidity Granger-causes FAB anomalies
+```{r}
+# Stack your raster objects, where the first part is the cause and the second the response
+data <- c(rh.anom.detrend, fab.anom.detrend)
+
+# Assess Granger causality
+p.value <- app(x = data, fun = granger.fun)
+
+# Create a boolean map where all locations with p-values < 0.01 equal 1 and all remaining gridcells equal zero
+p.value[p.value >= 0.05] <- 0
+p.value[p.value > 0] <- 1
+
+p.value.rh <- p.value
+
+plot(p.value, col = c("white", "orange"), main = "Relative Humidity Granger-causes FAB Anomalies")
+map("world2", add = TRUE, interior = FALSE)
+```
+
+## Identify gridcells where all five variables granger-cause FAB
+```{r}
+p.value <- p.value.pr + p.value.tas + p.value.sm + p.value.ws + p.value.rh
+plot(p.value, main = "PR, TAS, SM, WS and RH Granger-causes FAB Anomalies")
+map("world2", add = TRUE, interior = FALSE)
+```

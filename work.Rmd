@@ -605,3 +605,300 @@ p.value <- p.value.pr + p.value.tas + p.value.sm + p.value.ws + p.value.rh
 plot(p.value, main = "PR, TAS, SM, WS and RH Granger-causes FAB Anomalies")
 map("world2", add = TRUE, interior = FALSE)
 ```
+
+## Cross correlation
+
+# Define a function that finds the time lag with the largest correlation coefficient
+# define a function that gives the corresponding correlation coefficient
+
+```{r}
+findLag.fun <- function(x) {
+  # 1. Strict NA check
+  if (any(is.na(x))) return(NA)
+  
+  n <- length(x)
+  mid <- n / 2
+  a <- x[1:mid]
+  b <- x[(mid + 1):n]
+  
+  # 2. Check for zero variance (if all values are the same, correlation is impossible)
+  if (var(a) == 0 || var(b) == 0) return(NA)
+  
+  # 3. Secure the calculation
+  res <- tryCatch({
+    ccf_result <- ccf(a, b, lag.max = 12, plot = FALSE)
+    max_index <- which.max(abs(ccf_result$acf))
+    as.numeric(ccf_result$lag[max_index])
+  }, error = function(e) return(NA))
+  
+  return(res)
+}
+
+findMaxCorr.fun <- function(x) {
+  if (any(is.na(x))) return(NA)
+  
+  n <- length(x)
+  mid <- n / 2
+  a <- x[1:mid]
+  b <- x[(mid + 1):n]
+  
+  if (var(a) == 0 || var(b) == 0) return(NA)
+  
+  res <- tryCatch({
+    ccf_result <- ccf(a, b, lag.max = 12, plot = FALSE)
+    max_index <- which.max(abs(ccf_result$acf))
+    as.numeric(ccf_result$acf[max_index])
+  }, error = function(e) return(NA))
+  
+  return(res)
+}
+```
+
+# prcipitation 
+```{r}
+# Stack your raster objects, where the first part is the cause and the second the response
+data <- c(fab.anom.detrend, pr.anom.detrend)
+
+# Compute time lags with largest correlation coefficients
+timeLags <- app(x = data, fun = findLag.fun)
+maxCorr <- app(x = data, fun = findMaxCorr.fun)
+maxCorr.pr <- maxCorr
+
+par(mfrow = c(1, 2))
+
+# Plot time lags
+breaks <- seq(-12, 12, 1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  timeLags,
+  main = "Monthly time lags with largest correlation coefficient \n (Precipitation and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+# Plot Correlation Coefficients
+breaks <- seq(-1, 1, 0.1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  maxCorr,
+  main = "Corresaponding Correlation coefficient \n (Precipitation and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+```
+
+# Temperature
+```{r}
+# Stack your raster objects, where the first part is the cause and the second the response
+data <- c(fab.anom.detrend, tas.anom.detrend)
+
+# Compute time lags with largest correlation coefficients
+timeLags <- app(x = data, fun = findLag.fun)
+maxCorr <- app(x = data, fun = findMaxCorr.fun)
+maxCorr.tas <- maxCorr
+
+par(mfrow = c(1, 2))
+
+# Plot time lags
+breaks <- seq(-12, 12, 1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  timeLags,
+  main = "Monthly time lags with largest correlation coefficient \n (Temperature and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+# Plot Correlation Coefficients
+breaks <- seq(-1, 1, 0.1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  maxCorr,
+  main = "Corresaponding Correlation coefficient \n (Temperature and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+```
+
+# soil Moisture
+```{r}
+# Stack your raster objects, where the first part is the cause and the second the response
+data <- c(fab.anom.detrend, sm.anom.detrend)
+
+# Compute time lags with largest correlation coefficients
+timeLags <- app(x = data, fun = findLag.fun)
+maxCorr <- app(x = data, fun = findMaxCorr.fun)
+maxCorr.sm <- maxCorr
+
+par(mfrow = c(1, 2))
+
+# Plot time lags
+breaks <- seq(-12, 12, 1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  timeLags,
+  main = "Monthly time lags with largest correlation coefficient \n (Soil Moisture and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+# Plot Correlation Coefficients
+breaks <- seq(-1, 1, 0.1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  maxCorr,
+  main = "Corresaponding Correlation coefficient \n (Soil moisture and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+```
+
+# Surface wind
+```{r}
+# Stack your raster objects, where the first part is the cause and the second the response
+data <- c(fab.anom.detrend, ws.anom.detrend)
+
+# Compute time lags with largest correlation coefficients
+timeLags <- app(x = data, fun = findLag.fun)
+maxCorr <- app(x = data, fun = findMaxCorr.fun)
+maxCorr.ws <- maxCorr
+
+par(mfrow = c(1, 2))
+
+# Plot time lags
+breaks <- seq(-12, 12, 1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  timeLags,
+  main = "Monthly time lags with largest correlation coefficient \n (Surface Winds and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+# Plot Correlation Coefficients
+breaks <- seq(-1, 1, 0.1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  maxCorr,
+  main = "Corresaponding Correlation coefficient \n (Surface Winds and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+```
+
+# Relative Humidity
+```{r}
+# Stack your raster objects, where the first part is the cause and the second the response
+data <- c(fab.anom.detrend, rh.anom.detrend)
+
+# Compute time lags with largest correlation coefficients
+timeLags <- app(x = data, fun = findLag.fun)
+maxCorr <- app(x = data, fun = findMaxCorr.fun)
+maxCorr.rh <- maxCorr
+
+par(mfrow = c(1, 2))
+
+# Plot time lags
+breaks <- seq(-12, 12, 1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  timeLags,
+  main = "Monthly time lags with largest correlation coefficient \n (Relative Humidity and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+# Plot Correlation Coefficients
+breaks <- seq(-1, 1, 0.1)
+my.col <- rev(map.pal("differences", n = length(breaks) - 1))
+
+plot(
+  maxCorr,
+  main = "Corresaponding Correlation coefficient \n (Relative Humidity and FAB)",
+  cex.main = 0.7,
+  col = my.col,
+  breaks = breaks,
+  type = "continuous"
+)
+map("world2", add = TRUE, interior = FALSE)
+
+```
+```{r}
+maxR2.pr <- maxCorr.pr^2 * p.value.pr
+maxR2.tas <- maxCorr.tas^2 * p.value.tas
+maxR2.sm <- maxCorr.sm^2 * p.value.sm
+maxR2.ws <- maxCorr.ws^2 * p.value.ws
+maxR2.rh <- maxCorr.rh^2 * p.value.rh
+
+stacked_rasters <- c(maxR2.pr, maxR2.tas, maxR2.sm, maxR2.ws, maxR2.rh)
+names(stacked_rasters) <- c("PR", "TAS", "SM", "WS", "RH")
+
+# Apply a function to find the index of the max value for each cell
+highest_index <- app(stacked_rasters, which.max)
+
+# Set the levels to replace numeric values with the names of the rasters
+levels(highest_index) <- data.frame(id = 1:5, name = names(stacked_rasters))
+
+# Plot the result to visualize the highest value index for each cell
+plot(highest_index, main = "Met variables that dominate FAB anomaly variability")
+map("world2", add = TRUE, interior = FALSE)
+```
+```{r}
+# Calculate the frequency of each category
+freq_table <- freq(highest_index)
+
+# Define colors to match your plot (optional, but good for consistency)
+# PR: blue, TAS: red, SM: brown, WS: green, RH: purple (example palette)
+my_cols <- c("#580072", "#576880", "#2aa6b8", "#2ecc71", "#f7e341")
+
+# Create the Pie Chart
+pie(freq_table$count, 
+    labels = paste0(freq_table$label, " (", round(100 * freq_table$count/sum(freq_table$count), 1), "%)"),
+    col = my_cols,
+    main = "Dominant Met Drivers of FAB Anomalies")
+  legend("topleft", 
+         legend = c("PR", "TAS", "SM", "WS", "RH"), 
+         col= c("#580072", "#576880", "#2aa6b8", "#2ecc71", "#f7e341"), 
+         pch = c(16)
+  )
+```

@@ -4,6 +4,15 @@ output: pdf_document
 date: "2026-01-21"
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  dev = "ragg_png",
+  dpi = 300,
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
 ```{r}
 rm(list = ls())
 setwd("/cloud/project/")
@@ -458,27 +467,42 @@ map("world2", add = TRUE)
 # Causal Inference
 
 ### Defining a Granger causality function that can be applied to each grid cell
-```{r} 
+```{r}
 granger.fun <- function(x) {
+
+  # Always return numeric(1)
   
-    # If a grid cell contains NA, then set the result to NA
-   if (is.na(mean(x))) {
-    return(NA)
-  } else {
-    
+  # If all NA → return NA_real_
+  if (all(is.na(x))) return(NA_real_)
+
   n <- length(x)
-  # Get first (a) and second (b) variable
+
+  # Must be even length
+  if (n %% 2 != 0) return(NA_real_)
+
   a <- x[1:(n/2)]
-  b <- x[(n/2+1):n]
-  # Convert to time series
-  a <- ts(a)
-  b <- ts(b)
-  tsDat <- ts.union(a, b)
-  tsVAR <- vars::VAR(tsDat, p = 2)
-  # Apply Granger causality test 
-  p.value <- c(vars::causality(tsVAR, cause = "a")$Granger[3]$p.value)
-  return(p.value)
+  b <- x[(n/2 + 1):n]
+
+  # If any NA present → return NA
+  if (any(is.na(a)) || any(is.na(b))) return(NA_real_)
+
+  tsDat <- cbind(a = a, b = b)
+
+  # Try VAR safely
+  tsVAR <- try(vars::VAR(tsDat, p = 2), silent = TRUE)
+  if (inherits(tsVAR, "try-error")) return(NA_real_)
+
+  gr <- try(vars::causality(tsVAR, cause = "a"), silent = TRUE)
+  if (inherits(gr, "try-error")) return(NA_real_)
+
+  pval <- gr$Granger$p.value
+
+  # If p-value missing or invalid
+  if (is.null(pval) || length(pval) != 1 || !is.numeric(pval)) {
+    return(NA_real_)
   }
+
+  return(as.numeric(pval))
 }
 ```
 
@@ -500,6 +524,8 @@ p.value.pr <- p.value
 plot(p.value, col = c("white", "orange"), main = "Precipitation Granger-causes FAB Anomalies")
 map("world2", add = TRUE, interior = FALSE)
 ```
+
+
 ## Check whether Temperature Granger-causes FAB anomalies
 ```{r}
 # Stack your raster objects, where the first part is the cause and the second the response
@@ -517,6 +543,7 @@ p.value.tas <- p.value
 plot(p.value, col = c("white", "orange"), main = "Temperature Granger-causes FAB Anomalies")
 map("world2", add = TRUE, interior = FALSE)
 ```
+
 ## Check whether Soil moisture Granger-causes FAB anomalies
 ```{r}
 # Stack your raster objects, where the first part is the cause and the second the response
@@ -534,6 +561,7 @@ p.value.sm <- p.value
 plot(p.value, col = c("white", "orange"), main = "Soil Moisture Granger-causes FAB Anomalies")
 map("world2", add = TRUE, interior = FALSE)
 ```
+
 
 ## Check whether Wind Speed Granger-causes FAB anomalies
 ```{r}

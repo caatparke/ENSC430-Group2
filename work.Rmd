@@ -602,9 +602,14 @@ map("world2", add = TRUE, interior = FALSE)
 ## Identify gridcells where all five variables granger-cause FAB
 ```{r}
 p.value <- p.value.pr + p.value.tas + p.value.sm + p.value.ws + p.value.rh
-plot(p.value, main = "PR, TAS, SM, WS and RH Granger-causes FAB Anomalies")
+
+my_colors <- c("white", "#580072", "#576880", "#2aa6b8", "#2ecc71")
+
+plot(p.value, col= my_colors, main = "PR, TAS, SM, WS and RH Granger-causes FAB Anomalies" 
+     )
 map("world2", add = TRUE, interior = FALSE)
 ```
+
 
 ## Cross correlation
 

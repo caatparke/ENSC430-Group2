@@ -24,21 +24,6 @@ library(climetrics)
 library(vars)
 ```
 
-```{r}
-data <- terra::rast("data/fractionBurnt_ESACCI-L4_FIRE-BA-MODIS-fv5.1.nc")
-
-# Let's subset Jan 2001 to Dec 2015
-data <- terra::subset(data, 12:180)
-# Let's focus on the Canada
-data <- crop(x=data, y = c(219.0, 307.4, 41.7, 83.1))
-
-evi.mean <- mean(data, na.rm = TRUE)
-
-plot(evi.mean, main = "Fractional Area Burned (-)")
-map("world2", add = TRUE)
-```
-
-
 ## Correcting Spatial Resolution 
 ```{r}
 # Let's focus on Canada
@@ -49,7 +34,7 @@ domain <- c(219.0, 307.4, 41.7, 83.1) # Canada
 data <- terra::rast("data/fractionBurnt_ESACCI-L4_FIRE-BA-MODIS-fv5.1.nc")
 data <- crop(x = data, y = domain)
 data <- subset(data, 1:180) # Subset Jan 2001 to Dec 2015
-data <- aggregate(x = data, fact=2, fun="mean") # More coarse spatial resolution
+data <- aggregate(x = data, fact=2, fun="mean") # More coarse spatial resolution #remove to get better resolution*
 crs(data) <- "EPSG:4326" # assign a map projection (WGS84)
 fab <- data
 mask <- mean(data) # create mask
@@ -610,7 +595,6 @@ plot(p.value, col= my_colors, main = "PR, TAS, SM, WS and RH Granger-causes FAB 
 map("world2", add = TRUE, interior = FALSE)
 ```
 
-
 ## Cross correlation
 
 # Define a function that finds the time lag with the largest correlation coefficient
@@ -659,7 +643,7 @@ findMaxCorr.fun <- function(x) {
 }
 ```
 
-# prcipitation 
+# precipitation 
 ```{r}
 # Stack your raster objects, where the first part is the cause and the second the response
 data <- c(fab.anom.detrend, pr.anom.detrend)
@@ -669,6 +653,11 @@ timeLags <- app(x = data, fun = findLag.fun)
 maxCorr <- app(x = data, fun = findMaxCorr.fun)
 maxCorr.pr <- maxCorr
 
+p.value.pr[p.value.pr==0] <- NA
+
+maxCorr.pr <- maxCorr.pr * p.value.pr
+maxCorr <- maxCorr.pr
+
 par(mfrow = c(1, 2))
 
 # Plot time lags
@@ -676,7 +665,7 @@ breaks <- seq(-12, 12, 1)
 my.col <- rev(map.pal("differences", n = length(breaks) - 1))
 
 plot(
-  timeLags,
+  timeLags * p.value.pr,
   main = "Monthly time lags with largest correlation coefficient \n (Precipitation and FAB)",
   cex.main = 0.7,
   col = my.col,
@@ -711,6 +700,11 @@ timeLags <- app(x = data, fun = findLag.fun)
 maxCorr <- app(x = data, fun = findMaxCorr.fun)
 maxCorr.tas <- maxCorr
 
+p.value.tas[p.value.tas==0] <- NA
+
+maxCorr.tas <- maxCorr.tas * p.value.tas
+maxCorr <- maxCorr.tas
+
 par(mfrow = c(1, 2))
 
 # Plot time lags
@@ -718,7 +712,7 @@ breaks <- seq(-12, 12, 1)
 my.col <- rev(map.pal("differences", n = length(breaks) - 1))
 
 plot(
-  timeLags,
+  timeLags * p.value.tas,
   main = "Monthly time lags with largest correlation coefficient \n (Temperature and FAB)",
   cex.main = 0.7,
   col = my.col,
@@ -753,6 +747,11 @@ timeLags <- app(x = data, fun = findLag.fun)
 maxCorr <- app(x = data, fun = findMaxCorr.fun)
 maxCorr.sm <- maxCorr
 
+p.value.sm[p.value.sm==0] <- NA
+
+maxCorr.sm <- maxCorr.sm * p.value.sm
+maxCorr <- maxCorr.sm
+
 par(mfrow = c(1, 2))
 
 # Plot time lags
@@ -760,7 +759,7 @@ breaks <- seq(-12, 12, 1)
 my.col <- rev(map.pal("differences", n = length(breaks) - 1))
 
 plot(
-  timeLags,
+  timeLags * p.value.sm,
   main = "Monthly time lags with largest correlation coefficient \n (Soil Moisture and FAB)",
   cex.main = 0.7,
   col = my.col,
@@ -795,6 +794,11 @@ timeLags <- app(x = data, fun = findLag.fun)
 maxCorr <- app(x = data, fun = findMaxCorr.fun)
 maxCorr.ws <- maxCorr
 
+p.value.ws[p.value.ws==0] <- NA
+
+maxCorr.ws <- maxCorr.ws * p.value.ws
+maxCorr <- maxCorr.ws
+
 par(mfrow = c(1, 2))
 
 # Plot time lags
@@ -802,7 +806,7 @@ breaks <- seq(-12, 12, 1)
 my.col <- rev(map.pal("differences", n = length(breaks) - 1))
 
 plot(
-  timeLags,
+  timeLags * p.value.ws,
   main = "Monthly time lags with largest correlation coefficient \n (Surface Winds and FAB)",
   cex.main = 0.7,
   col = my.col,
@@ -837,6 +841,11 @@ timeLags <- app(x = data, fun = findLag.fun)
 maxCorr <- app(x = data, fun = findMaxCorr.fun)
 maxCorr.rh <- maxCorr
 
+p.value.rh[p.value.rh==0] <- NA
+
+maxCorr.rh <- maxCorr.rh * p.value.rh
+maxCorr <- maxCorr.rh
+
 par(mfrow = c(1, 2))
 
 # Plot time lags
@@ -844,7 +853,7 @@ breaks <- seq(-12, 12, 1)
 my.col <- rev(map.pal("differences", n = length(breaks) - 1))
 
 plot(
-  timeLags,
+  timeLags * p.value.rh,
   main = "Monthly time lags with largest correlation coefficient \n (Relative Humidity and FAB)",
   cex.main = 0.7,
   col = my.col,
@@ -875,28 +884,42 @@ maxR2.sm <- maxCorr.sm^2 * p.value.sm
 maxR2.ws <- maxCorr.ws^2 * p.value.ws
 maxR2.rh <- maxCorr.rh^2 * p.value.rh
 
+maxR2.pr[maxR2.pr==0] <- NA
+maxR2.tas[maxR2.tas==0] <- NA
+maxR2.sm[maxR2.sm==0] <- NA
+maxR2.ws[maxR2.ws==0] <- NA
+maxR2.rh[maxR2.rh==0] <- NA
+
 stacked_rasters <- c(maxR2.pr, maxR2.tas, maxR2.sm, maxR2.ws, maxR2.rh)
 names(stacked_rasters) <- c("PR", "TAS", "SM", "WS", "RH")
 
+mask <- app(stacked_rasters, max, na.rm = TRUE)
+mask <- mask - mask + 1
+
 # Apply a function to find the index of the max value for each cell
-highest_index <- app(stacked_rasters, which.max)
+highest_index <- app(stacked_rasters, which.max, na.rm = TRUE)
 
 # Set the levels to replace numeric values with the names of the rasters
 levels(highest_index) <- data.frame(id = 1:5, name = names(stacked_rasters))
+
+# Exclude gridcells that are NA:
+highest_index <- highest_index * mask
 
 # Plot the result to visualize the highest value index for each cell
 plot(highest_index, main = "Met variables that dominate FAB anomaly variability")
 map("world2", add = TRUE, interior = FALSE)
 ```
+
+
 ```{r}
-# Calculate the frequency of each category
+# 1. Calculate the frequency of each category
 freq_table <- freq(highest_index)
 
-# Define colors to match your plot (optional, but good for consistency)
+# 2. Define colors to match your plot (optional, but good for consistency)
 # PR: blue, TAS: red, SM: brown, WS: green, RH: purple (example palette)
 my_cols <- c("#580072", "#576880", "#2aa6b8", "#2ecc71", "#f7e341")
 
-# Create the Pie Chart
+# 3. Create the Pie Chart
 pie(freq_table$count, 
     labels = paste0(freq_table$label, " (", round(100 * freq_table$count/sum(freq_table$count), 1), "%)"),
     col = my_cols,
